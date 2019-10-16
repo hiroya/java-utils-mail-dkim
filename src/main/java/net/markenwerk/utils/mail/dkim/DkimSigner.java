@@ -545,23 +545,15 @@ public class DkimSigner {
 		}
 
 		// process body
-		ByteArrayBackedOutputStream baos = new ByteArrayBackedOutputStream();
-		CRLFOutputStream crlfos = new CRLFOutputStream(baos);
-		try {
-			encodedBody.writeTo(crlfos);
-			crlfos.close();
-		} catch (IOException e) {
-			throw new DkimSigningException("The body conversion to MIME canonical CRLF line terminator failed", e);
-		}
-		String body = baos.result().toString();
-		body = bodyCanonicalization.canonicalizeBody(body);
+		ByteArray body = bodyCanonicalization.canonicalizeBody(encodedBody);
 
 		if (lengthParam) {
 			dkimSignature.put("l", Integer.toString(body.length()));
 		}
 
 		// calculate and encode body hash
-		dkimSignature.put("bh", base64Encode(messageDigest.digest(body.getBytes())));
+		messageDigest.update(body.toByteBuffer());
+		dkimSignature.put("bh", base64Encode(messageDigest.digest()));
 
 		// create signature
 		String serializedSignature = serializeDkimSignature(dkimSignature);

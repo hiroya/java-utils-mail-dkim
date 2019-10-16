@@ -46,23 +46,8 @@ public enum Canonicalization {
 			return name + ": " + value;
 		}
 
-		public String canonicalizeBody(String body) {
-
-			if (body == null || "".equals(body)) {
-				return "\r\n";
-			}
-
-			// The body must end with \r\n
-			if (!body.endsWith("\r\n")) {
-				return body + "\r\n";
-			}
-
-			// Remove trailing empty lines ...
-			while (body.endsWith("\r\n\r\n")) {
-				body = body.substring(0, body.length() - 2);
-			}
-
-			return body;
+		public ByteArray canonicalizeBody(ByteArray body) {
+			return new SimpleCanonicalizationParser().parse(body);
 		}
 	},
 
@@ -86,33 +71,8 @@ public enum Canonicalization {
 			return name + ":" + value;
 		}
 
-		public String canonicalizeBody(String body) {
-
-			if (body == null) {
-				return "";
-			}
-
-            // The body must end with \r\n
-            // this must be called before removing space, otherwise space keeps unremoved if body ends with space.
-            if (!body.endsWith("\r\n")) {
-                body += "\r\n";
-            }
-
-			body = body.replaceAll("[ \\t]+", " "); // not [ \t\x0B\f]
-			body = body.replaceAll(" \r\n", "\r\n");
-
-            // Remove trailing empty lines ...
-			int lst = body.length();
-			while(lst >= 4 && body.substring(lst - 4, lst).endsWith("\r\n\r\n")) {
-			    lst -= 2;
-            }
-			body = body.substring(0, lst);
-
-			// at last, ensure '\r\n' is empty
-            if ("\r\n".equals(body)) {
-                body = "";
-            }
-            return body;
+		public ByteArray canonicalizeBody(ByteArray body) {
+			return new RelaxedCanonicalizationParser().parse(body);
 		}
 	};
 
@@ -143,5 +103,5 @@ public enum Canonicalization {
 	 *            The content of the body.
 	 * @return The canonicalized body.
 	 */
-	public abstract String canonicalizeBody(String body);
+	public abstract ByteArray canonicalizeBody(ByteArray body);
 }

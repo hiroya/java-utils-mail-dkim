@@ -13,7 +13,10 @@ class ByteArrayBackedOutputStream extends OutputStream {
     private int size = 0;
 
     ByteArrayBackedOutputStream() {
-        bb = new ByteArray(1024);
+        this(1024);
+    }
+    ByteArrayBackedOutputStream(int capacity) {
+        bb = new ByteArray(Math.max(capacity, 16));
     }
 
     private void enlarge(int target) {
