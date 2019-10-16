@@ -42,7 +42,7 @@ public class DkimMessageUnchangedTest {
                 for (Algo a : Algo.values()) {
                     DkimSigner signer = mkSigner(c.cannon, a.algo);
                     String name = a.name()+"_"+c.name();
-                    byte[] bytes = writeMsg(signer, body);
+                    byte[] bytes = writeMsg(signer, body, true);
                     Utils.write(new File("./src/test/resources/" + name, file.getName()), bytes);
                 }
             }
@@ -59,7 +59,16 @@ public class DkimMessageUnchangedTest {
     }
 
 	@Test
-	public void testCreatingSameMessageAsBefore() throws Exception {
+	public void testCreatingSameMessageAsBefore_useDkimMsg() throws Exception {
+        _testCreatingSameMessageAsBefore(true);
+	}
+
+	@Test
+	public void testCreatingSameMessageAsBefore_not_useDkimMsg() throws Exception {
+        _testCreatingSameMessageAsBefore(false);
+	}
+
+	private void _testCreatingSameMessageAsBefore(boolean useDKimMsg) throws Exception {
         File[] files = new File("./src/test/resources/body").listFiles();
         for (File file : files) {
             String body = new String(Utils.read(file));
@@ -67,7 +76,7 @@ public class DkimMessageUnchangedTest {
                 for (Algo a : Algo.values()) {
                     DkimSigner signer = mkSigner(c.cannon, a.algo);
                     String name = a.name()+"_"+c.name();
-                    byte[] actual = writeMsg(signer, body);
+                    byte[] actual = writeMsg(signer, body, useDKimMsg);
                     byte[] expected = Utils.read(new File("./src/test/resources/" + name, file.getName()));
                     assertArrayEquals("body:" + file.getName() + ", algorithm:" + name, expected, actual);
                 }
@@ -88,7 +97,7 @@ public class DkimMessageUnchangedTest {
 		return signer;
 	}
 
-	private static byte[] writeMsg(DkimSigner signer, String body) throws Exception {
+	private static byte[] writeMsg(DkimSigner signer, String body, boolean useDkimMsg) throws Exception {
 		// Session
 		Properties properties=new Properties();
 		properties.setProperty("mail.smtp.host", "exapmle.com");
@@ -115,9 +124,13 @@ public class DkimMessageUnchangedTest {
 		message.setHeader("Content-Type", "text/plain; charset=\"US-ASCII\"");
 		message.saveChanges();
 
-		DkimMessage dkimMessage = new DkimMessage(message, signer);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        dkimMessage.writeTo(out);
+		if (useDkimMsg) {
+            DkimMessage dkimMessage = new DkimMessage(message, signer);
+            dkimMessage.writeTo(out);
+        } else {
+            signer.writeTo(message, out);
+        }
 		return out.toByteArray();
 	}
 

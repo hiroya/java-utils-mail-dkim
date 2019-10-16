@@ -87,7 +87,7 @@ public class DomainKeyTest {
 		dkimMessage.writeTo(new ByteArrayOutputStream());
 
 		Pattern pattern = Pattern.compile("bh=(.+?);", Pattern.MULTILINE);
-		Matcher m = pattern.matcher(signer.sign(dkimMessage));
+		Matcher m = pattern.matcher(signer.sign(dkimMessage, new ByteArray("".getBytes())));
 
 		if(!m.find()) {
 			return "";

@@ -18,7 +18,6 @@
  */
 package net.markenwerk.utils.mail.dkim;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Enumeration;
@@ -43,8 +42,6 @@ public class DkimMessage extends SMTPMessage {
 	private static byte[] NL = { (byte) '\r', (byte) '\n' };
 
 	private DkimSigner signer;
-
-	private String encodedBody;
 
 	/**
 	 * Created a new {@code DkimMessage} from the given {@link MimeMessage} and
@@ -90,7 +87,7 @@ public class DkimMessage extends SMTPMessage {
 			saveChanges();
 		}
 
-		ByteArrayOutputStream bodyBuffer = new ByteArrayOutputStream();
+		ByteArrayBackedOutputStream bodyBuffer = new ByteArrayBackedOutputStream();
 		if (modified) {
 			// write out the body from the dataHandler through the
 			// encodingOutputStream into the bodyBuffer
@@ -110,10 +107,10 @@ public class DkimMessage extends SMTPMessage {
 			bodyBuffer.close();
 		}
 
-		encodedBody = bodyBuffer.toString();
+		ByteArray encodedBody = bodyBuffer.result();
 
 		// second, sign the message
-		String signatureHeaderLine = signer.sign(this);
+		String signatureHeaderLine = signer.sign(this, encodedBody);
 
 		// write the 'DKIM-Signature' header, all other headers and a clear \r\n
 		writeln(os, signatureHeaderLine);
@@ -125,17 +122,8 @@ public class DkimMessage extends SMTPMessage {
 		os.flush();
 
 		// write the message body
-		os.write(bodyBuffer.toByteArray());
+		encodedBody.writeTo(os);
 		os.flush();
-	}
-
-	/**
-	 * Returns the encoded body.
-	 * 
-	 * @return The encoded body.
-	 */
-	protected String getEncodedBody() {
-		return encodedBody;
 	}
 
 	@Override
@@ -146,11 +134,11 @@ public class DkimMessage extends SMTPMessage {
 		super.setAllow8bitMIME(false);
 	}
 
-	private static void writeln(OutputStream out) throws IOException {
+	static void writeln(OutputStream out) throws IOException {
 		out.write(NL);
 	}
 
-	private static void writeln(OutputStream out, String string) throws IOException {
+	static void writeln(OutputStream out, String string) throws IOException {
 		byte[] bytes = getBytes(string);
 		out.write(bytes);
 		out.write(NL);
