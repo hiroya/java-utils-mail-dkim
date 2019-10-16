@@ -88,24 +88,31 @@ public enum Canonicalization {
 
 		public String canonicalizeBody(String body) {
 
-			if (body == null || "".equals(body) || "\r\n".equals(body)) {
+			if (body == null) {
 				return "";
 			}
 
-			body = body.replaceAll("[ \\t\\x0B\\f]+", " ");
+            // The body must end with \r\n
+            // this must be called before removing space, otherwise space keeps unremoved if body ends with space.
+            if (!body.endsWith("\r\n")) {
+                body += "\r\n";
+            }
+
+			body = body.replaceAll("[ \\t]+", " "); // not [ \t\x0B\f]
 			body = body.replaceAll(" \r\n", "\r\n");
 
-			// The body must end with \r\n
-			if (!body.endsWith("\r\n")) {
-				return body + "\r\n";
-			}
+            // Remove trailing empty lines ...
+			int lst = body.length();
+			while(lst >= 4 && body.substring(lst - 4, lst).endsWith("\r\n\r\n")) {
+			    lst -= 2;
+            }
+			body = body.substring(0, lst);
 
-			// Remove trailing empty lines ...
-			while (body.endsWith("\r\n\r\n")) {
-				body = body.substring(0, body.length() - 2);
-			}
-
-			return body;
+			// at last, ensure '\r\n' is empty
+            if ("\r\n".equals(body)) {
+                body = "";
+            }
+            return body;
 		}
 	};
 

@@ -30,11 +30,13 @@ public class DkimMessageUnchangedTest {
         }
     }
 
+    private static String domain = "example.com";
+
     /**
      * create DKIM messages at certain moment, then store those messages as "valid message".
      */
     public static void main(String[] args) throws Exception {
-        createRandomBody();
+//        createRandomBody();
         File[] files = new File("./src/test/resources/body").listFiles();
         for (File file : files) {
             String body = new String(Utils.read(file));
@@ -86,7 +88,7 @@ public class DkimMessageUnchangedTest {
 
 	private static DkimSigner mkSigner(Canonicalization canonicalization, SigningAlgorithm algorithm) throws Exception {
 		// signer
-		DkimSigner signer = new DkimSigner("example.com", "dkim1", new File("private_key.pk8"));
+		DkimSigner signer = new DkimSigner(domain, "dkim1", new File("private_key.pk8"));
 		signer.setHeaderCanonicalization(canonicalization);
 		signer.setBodyCanonicalization(canonicalization);
 		signer.setLengthParam(true);
@@ -100,9 +102,9 @@ public class DkimMessageUnchangedTest {
 	private static byte[] writeMsg(DkimSigner signer, String body, boolean useDkimMsg) throws Exception {
 		// Session
 		Properties properties=new Properties();
-		properties.setProperty("mail.smtp.host", "exapmle.com");
-		properties.setProperty("mail.from", "foo@exapmle.com");
-		properties.setProperty("mail.smtp.from", "exapmle.com");
+		properties.setProperty("mail.smtp.host", domain);
+		properties.setProperty("mail.from", "foo@"+domain);
+		properties.setProperty("mail.smtp.from", domain);
 		Session session=Session.getDefaultInstance(properties);
 		// Message
 		MimeMessage message = new MimeMessage(session) {
@@ -116,9 +118,9 @@ public class DkimMessageUnchangedTest {
             }
         };
         message.setSentDate(new Date((long)1e9)); // to bind "t" parameter, set constant date as "Signature Timestamp"
-		message.setRecipient(Message.RecipientType.TO, new InternetAddress("test@exapmle.com"));
+		message.setRecipient(Message.RecipientType.TO, new InternetAddress("test@"+domain));
 		message.setSubject("Title");
-		message.setFrom("support@example.com");
+		message.setFrom("support@"+domain);
 		message.setText(body, "US-ASCII", "plain");
 		message.setHeader("Content-Transfer-Encoding", "7bit");
 		message.setHeader("Content-Type", "text/plain; charset=\"US-ASCII\"");

@@ -73,6 +73,8 @@ public class DomainKeyTest {
 		// Session
 		Properties properties=new Properties();
 		properties.setProperty("mail.smtp.host", "localhost");
+        properties.setProperty("mail.from", "foo@localhost");
+        properties.setProperty("mail.smtp.from", "localhost");
 		Session session=Session.getDefaultInstance(properties);
 		// Message
 		MimeMessage message = new MimeMessage(session);
