@@ -47,7 +47,11 @@ public enum Canonicalization {
 		}
 
 		public ByteArray canonicalizeBody(ByteArray body) {
-			return new SimpleCanonicalizationParser().parse(body);
+            return new CanonicalizationParser()
+                             .withReduceSp(false)
+                             .withRemoveLineEndReducedSp(false)
+                             .withAddCRLFIfEmpty(true)
+                             .parse(body);
 		}
 	},
 
@@ -72,7 +76,11 @@ public enum Canonicalization {
 		}
 
 		public ByteArray canonicalizeBody(ByteArray body) {
-			return new RelaxedCanonicalizationParser().parse(body);
+			return new CanonicalizationParser()
+                    .withReduceSp(true)
+                    .withRemoveLineEndReducedSp(true)
+                    .withAddCRLFIfEmpty(false)
+                    .parse(body);
 		}
 	};
 
