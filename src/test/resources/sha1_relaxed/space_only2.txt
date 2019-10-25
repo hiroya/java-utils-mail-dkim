@@ -1,14 +1,14 @@
 DKIM-Signature: v=1; a=rsa-sha1; q=dns/txt; c=relaxed/relaxed; t=1000000; s=dkim1;
 	d=example.com;
-	h=Date:From:To:Message-ID:Subject:MIME-Version:Content-Type:Content-Transfer-Encoding;
+	h=Content-Transfer-Encoding:Content-Type:MIME-Version:Subject:Message-ID:To:From:Date;
 	l=7; bh=W2Hj6nJvV8qqadu057WV0yv33wQ=;
-	b=GX5JS3d7n0T5z+USI9b29OPoqQCbYKRiUn6Se7wroavIbjyeX9F45aygfcPYKaSF
-	IAX481grrzWV5CdJbpoQLrqHlgeh397H3fkUJNkE2Ww9n6RO4atQXvRStkOJAzFwhAr
-	Lvl1IYcNw2pEHwdahWZ0naG7MDu+MhEKYtYcgzhI=
-Date: Mon, 12 Jan 1970 22:46:40 +0900 (JST)
+	b=jBjgXNyGTv2aXy4XoKiRdnPFNcIlmQX+RpCA/3UKlCcSv1mjb/jyFe0jSrr+oWJr
+	f7tVihpPT+L8ksm3yp25UAlXeeRFFIjJljurUyoGn14DxKBOTG/wO7eztxInCJ8YRMW
+	WeLcbu+GEmTEHgLbLmYCYC56IZXm0krXUWUofZAo=
+Date: Mon, 12 Jan 1970 13:46:40 +0000 (UTC)
 From: support@example.com
-To: test@example.com
-Message-ID: <msgid@example.com>
+To: test@exapmle.com
+Message-ID: <msgid@exapmle.com>
 Subject: Title
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"

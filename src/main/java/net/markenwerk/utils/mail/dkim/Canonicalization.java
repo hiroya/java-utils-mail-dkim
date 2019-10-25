@@ -18,8 +18,10 @@
  */
 package net.markenwerk.utils.mail.dkim;
 
+import com.sun.istack.internal.NotNull;
+
 /**
- * Provides 'simple' and 'relaxed' canonicalization according to RFC 4871.
+ * Provides "simple" and "relaxed" canonicalization according to RFC 4871.
  * 
  * @author Torsten Krause (tk at markenwerk dot net)
  * @author Florian Sager
@@ -28,17 +30,10 @@ package net.markenwerk.utils.mail.dkim;
 public enum Canonicalization {
 
 	/**
-	 * The 'simple' canonicalization algorithm.
-	 * Note that a completely empty or missing body is canonicalized as a
-	 *    single "CRLF"; that is, the canonicalized length will be 2 octets.
-	 *
-	 *    The SHA-1 value (in base64) for an empty body (canonicalized to a "CRLF") is:
-	 *
-	 *    uoq1oCgLlTqpdDX/iUbLy7J1Wic=
-	 *
-	 *    The SHA-256 value is:
-	 *
-	 *    frcCV1k9oG9oKj3dpUqdJg1PxRT2RSN/XKdLCPjaYaY=
+	 * The "simple" canonicalization algorithm.
+	 * 
+	 * The body canonicalization algorithm converts *CRLF at the end of the body to
+	 * a single CRLF.
 	 */
 	SIMPLE {
 
@@ -56,23 +51,15 @@ public enum Canonicalization {
 	},
 
 	/**
-	 * The 'relaxed' canonicalization algorithm.
-	 *
-	 * The SHA-1 value (in base64) for an empty body (canonicalized to a
-	 *    null input) is:
-	 *
-	 *    2jmj7l5rSw0yVb/vlWAYkK/YBwk=
-	 *
-	 *    The SHA-256 value is:
-	 *
-	 *    47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
+	 * The "relaxed" canonicalization algorithm.
+	 * 
+	 * The body canonicalization algorithm MUST reduce whitespace and ignore all
+	 * empty lines at the end of the message body.
 	 */
 	RELAXED {
 
 		public String canonicalizeHeader(String name, String value) {
-			name = name.trim().toLowerCase();
-			value = value.replaceAll("\\s+", " ").trim();
-			return name + ":" + value;
+			return name.trim().toLowerCase() + ":" + value.replaceAll("\\s+", " ").trim();
 		}
 
 		public ByteArray canonicalizeBody(ByteArray body) {
@@ -84,32 +71,15 @@ public enum Canonicalization {
 		}
 	};
 
-	/**
-	 * Returns a string representation of the canonicalization algorithm.
-	 * 
-	 * @return The string representation of the canonicalization algorithm.
-	 */
 	public final String getType() {
 		return name().toLowerCase();
 	}
 
-	/**
-	 * Performs header canonicalization.
-	 * 
-	 * @param name
-	 *            The name of the header.
-	 * @param value
-	 *            The value of the header.
-	 * @return The canonicalized header.
-	 */
 	public abstract String canonicalizeHeader(String name, String value);
 
 	/**
 	 * Performs body canonicalization.
-	 * 
-	 * @param body
-	 *            The content of the body.
-	 * @return The canonicalized body.
+	 * And performs line feeds canonicalization too.
 	 */
-	public abstract ByteArray canonicalizeBody(ByteArray body);
+	public abstract ByteArray canonicalizeBody(@NotNull ByteArray body);
 }

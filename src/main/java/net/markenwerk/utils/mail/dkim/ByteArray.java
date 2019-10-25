@@ -1,69 +1,74 @@
 package net.markenwerk.utils.mail.dkim;
 
-import java.io.*;
-import java.nio.*;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 /**
  * Simple byte array representation.
  */
 class ByteArray {
 
-    private byte[] bytes;
-    private int p = 0;
-    ByteArray(int capacity) {
-        bytes = new byte[capacity];
-    }
-    ByteArray(byte[] origin) {
-        bytes = origin;
-        p = origin.length;
-    }
+	private byte[] bytes;
+	private int p = 0;
 
-    void write(byte b) {
-        bytes[p++] = b;
-    }
+	ByteArray(int capacity) {
+		bytes = new byte[capacity];
+	}
 
-    void write(byte[] b, int off, int len) {
-        System.arraycopy(b, off, bytes, p, len);
-        p += len;
-    }
+	ByteArray(byte[] origin) {
+		bytes = origin;
+		p = origin.length;
+	}
 
-    byte at(int i) { return bytes[i]; }
+	void write(byte b) {
+		bytes[p++] = b;
+	}
 
-    void write(ByteArray ba) {
-        write(ba.bytes, 0, ba.p);
-    }
+	void write(byte[] b, int off, int len) {
+		System.arraycopy(b, off, bytes, p, len);
+		p += len;
+	}
 
-    int capacity() {
-        return bytes.length;
-    }
+	byte at(int i) {
+		return bytes[i];
+	}
 
-    int length() { return p; }
+	void write(ByteArray ba) {
+		write(ba.bytes, 0, ba.p);
+	}
 
-    void dropRight(int cnt) { p -= cnt; }
+	int capacity() {
+		return bytes.length;
+	}
 
-    ByteBuffer toByteBuffer() { return ByteBuffer.wrap(bytes, 0, p); }
+	int length() {
+		return p;
+	}
 
-    void writeTo(OutputStream out) throws IOException {
-        out.write(bytes, 0, p);
-    }
+	void dropRight(int cnt) {
+		p -= cnt;
+	}
 
-    byte last() { return bytes[p - 1]; }
+	ByteBuffer toByteBuffer() {
+		return ByteBuffer.wrap(bytes, 0, p);
+	}
 
-    boolean endsWith(byte[] b) {
-        if (b.length > p) return false;
-        int s = p - b.length;
-        for (int i = 0; i < b.length; i++) {
-            if (b[i] != bytes[s + i]) return false;
-        }
-        return true;
-    }
+	void writeTo(OutputStream out) throws IOException {
+		out.write(bytes, 0, p);
+	}
 
-    boolean equals(byte[] b) {
-        return b.length == p && endsWith(b);
-    }
+	boolean endsWith(byte[] b) {
+		if (b.length > p) return false;
+		int s = p - b.length;
+		for (int i = 0; i < b.length; i++) {
+			if (b[i] != bytes[s + i]) return false;
+		}
+		return true;
+	}
 
-    @Override
-    public String toString() {
-        return new String(bytes, 0, p);
-    }
+	@Override
+	public String toString() {
+		return new String(bytes, 0, p);
+	}
 }

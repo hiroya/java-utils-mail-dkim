@@ -1,6 +1,7 @@
 package net.markenwerk.utils.mail.dkim;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 
 /**
  * Simple byte array {@link OutputStream}<br>
@@ -9,39 +10,40 @@ import java.io.*;
  * {@link ByteArrayOutputStream}'s methods are synchronized.
  */
 class ByteArrayBackedOutputStream extends OutputStream {
-    private ByteArray bb;
-    private int size = 0;
+	private ByteArray bb;
+	private int size = 0;
 
-    ByteArrayBackedOutputStream() {
-        this(1024);
-    }
-    ByteArrayBackedOutputStream(int capacity) {
-        bb = new ByteArray(Math.max(capacity, 16));
-    }
+	ByteArrayBackedOutputStream() {
+		this(1024);
+	}
 
-    private void enlarge(int target) {
-        int cap = bb.capacity();
-        while(cap < target) cap <<= 1;
-        ByteArray nbb = new ByteArray(cap);
-        nbb.write(bb);
-        bb = nbb;
-    }
+	ByteArrayBackedOutputStream(int capacity) {
+		bb = new ByteArray(Math.max(capacity, 16));
+	}
 
-    @Override
-    public void write(int b) {
-        if (size + 1 > bb.capacity()) enlarge(size + 1);
-        bb.write((byte)b);
-        size++;
-    }
+	private void enlarge(int target) {
+		int cap = bb.capacity();
+		while (cap < target) cap <<= 1;
+		ByteArray nbb = new ByteArray(cap);
+		nbb.write(bb);
+		bb = nbb;
+	}
 
-    @Override
-    public void write(byte[] b, int off, int len) {
-        if (size + len > bb.capacity()) enlarge(size + len);
-        bb.write(b, off, len);
-        size += len;
-    }
+	@Override
+	public void write(int b) {
+		if (size + 1 > bb.capacity()) enlarge(size + 1);
+		bb.write((byte)b);
+		size++;
+	}
 
-    ByteArray result() {
-        return bb;
-    }
+	@Override
+	public void write(byte[] b, int off, int len) {
+		if (size + len > bb.capacity()) enlarge(size + len);
+		bb.write(b, off, len);
+		size += len;
+	}
+
+	ByteArray result() {
+		return bb;
+	}
 }
