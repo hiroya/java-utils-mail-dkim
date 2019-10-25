@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright 2008 The Apache Software Foundation or its licensors, as
  * applicable.
  *
@@ -39,6 +39,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -48,11 +49,11 @@ import java.util.regex.Pattern;
 
 import javax.mail.Header;
 import javax.mail.MessagingException;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeUtility;
 
 import com.sun.mail.util.CRLFOutputStream;
 import com.sun.mail.util.QPEncoderStream;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeUtility;
 import net.iharder.Base64;
 
 import net.markenwerk.utils.data.fetcher.BufferedDataFetcher;
@@ -103,6 +104,16 @@ public class DkimSigner {
 		DEFAULT_HEADERS_TO_SIGN.add("Resent-Message-ID");
 		DEFAULT_HEADERS_TO_SIGN.add("Resent-From");
 		DEFAULT_HEADERS_TO_SIGN.add("Sender");
+	}
+
+	private static class Pair<A, B> {
+		final A _1;
+		final B _2;
+
+		Pair(A _1, B _2) {
+			this._1 = _1;
+			this._2 = _2;
+		}
 	}
 
 	private final Set<String> headersToSign = new HashSet<String>(DEFAULT_HEADERS_TO_SIGN);
@@ -510,22 +521,29 @@ public class DkimSigner {
 
 		try {
 			Enumeration<Header> headerLines = message.getAllHeaders();
+			List<Pair<String, String>> reverseOrderHeaderLines = new LinkedList<Pair<String, String>>();
+
 			while (headerLines.hasMoreElements()) {
 				Header header = (Header) headerLines.nextElement();
 
 				String headerName = normalizeSigningHeaderName(header.getName());
 				if (headerName != null) {
-					String headerValue = header.getValue();
-					headerList.append(headerName).append(":");
-					headerContent.append(headerCanonicalization.canonicalizeHeader(headerName, headerValue));
-					headerContent.append("\r\n");
-					assureHeaders.remove(headerName);
-					if (zParam) {
-						zParamString.append(headerName);
-						zParamString.append(":");
-						zParamString.append(quotedPrintable(headerValue.trim()).replace("|", "=7C"));
-						zParamString.append("|");
-					}
+					reverseOrderHeaderLines.add(0, new Pair<String, String>(headerName, header.getValue()));
+				}
+			}
+
+			for(Pair<String, String> header : reverseOrderHeaderLines) {
+				String headerName = header._1;
+				String headerValue = header._2;
+				headerList.append(headerName).append(":");
+				headerContent.append(headerCanonicalization.canonicalizeHeader(headerName, headerValue));
+				headerContent.append("\r\n");
+				assureHeaders.remove(headerName);
+				if (zParam) {
+					zParamString.append(headerName);
+					zParamString.append(":");
+					zParamString.append(quotedPrintable(headerValue.trim()).replace("|", "=7C"));
+					zParamString.append("|");
 				}
 			}
 
