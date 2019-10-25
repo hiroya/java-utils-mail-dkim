@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright 2008 The Apache Software Foundation or its licensors, as
  * applicable.
  *
@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
@@ -48,6 +49,8 @@ import java.util.regex.Pattern;
 
 import javax.mail.Header;
 import javax.mail.MessagingException;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeUtility;
 
 import com.sun.mail.util.CRLFOutputStream;
 import com.sun.mail.util.QPEncoderStream;
@@ -101,6 +104,16 @@ public class DkimSigner {
 		DEFAULT_HEADERS_TO_SIGN.add("Resent-Message-ID");
 		DEFAULT_HEADERS_TO_SIGN.add("Resent-From");
 		DEFAULT_HEADERS_TO_SIGN.add("Sender");
+	}
+
+	private static class Pair<A, B> {
+		final A _1;
+		final B _2;
+
+		Pair(A _1, B _2) {
+			this._1 = _1;
+			this._2 = _2;
+		}
 	}
 
 	private final Set<String> headersToSign = new HashSet<String>(DEFAULT_HEADERS_TO_SIGN);
@@ -407,16 +420,69 @@ public class DkimSigner {
 		this.checkDomainKey = checkDomainKey;
 	}
 
+	public void writeTo(MimeMessage msg, OutputStream os) throws IOException, MessagingException {
+     	this.writeTo(msg, os, null);
+ 	}
+
+	/**
+	 * An option without using DkimMessage.<br>
+	 * Creating DkimMessage causes internal serialization, and deserialization.<br>
+	 *
+	 * Perform same as this code.
+	 * <code>
+	 * <pre>
+	 * 	DkimMessage dkim = new DkimMessage(msg, signer);
+	 * 	dkim.writeTo(out);
+	 * </pre>
+	 * </code>
+	 *
+	 * Almost same code as {@link MimeMessage#writeTo(OutputStream, String[])}.
+	 */
+	public void writeTo(MimeMessage msg, OutputStream os, String[] ignoreList) throws IOException, MessagingException {
+		// To be strict, message validation is needed here, such as 8bit "Content-Transfer-Encoding" is prohibited.
+		// Converting to a valid message is preferable.
+
+		// inside saveChanges it is assured that content encodings are set in
+		// all parts of the body
+		msg.saveChanges();
+
+		ByteArrayBackedOutputStream bodyBuffer = new ByteArrayBackedOutputStream();
+		OutputStream encodingOutputStream = MimeUtility.encode(bodyBuffer, msg.getEncoding());
+		msg.getDataHandler().writeTo(encodingOutputStream);
+		encodingOutputStream.flush();
+		encodingOutputStream.close();
+
+		ByteArray encodedBody = bodyBuffer.result();
+
+		// second, sign the message
+		String signatureHeaderLine = sign(msg, encodedBody);
+
+		// write the 'DKIM-Signature' header, all other headers and a clear \r\n
+		DkimMessage.writeln(os, signatureHeaderLine);
+		Enumeration<String> headerLines = msg.getNonMatchingHeaderLines(ignoreList);
+		while (headerLines.hasMoreElements()) {
+			DkimMessage.writeln(os, headerLines.nextElement());
+		}
+		DkimMessage.writeln(os);
+		os.flush();
+
+		// write the message body
+		encodedBody.writeTo(os);
+		os.flush();
+	}
+
 	/**
 	 * Returns the DKIM signature header line.
 	 * 
 	 * @param message
 	 *           The {@link DkimMessage} to sign.
+	 * @param encodedBody
+	 * 			 To avoid byte[]<->string conversion, pass ByteArray.
 	 * @return The DKIM signature header line
 	 * @throws DkimSigningException
 	 *            If the given {@link DkimMessage} couldnt't be signed.
 	 */
-	protected String sign(DkimMessage message) throws MessagingException {
+	protected String sign(MimeMessage message, ByteArray encodedBody) throws MessagingException {
 
 		if (checkDomainKey) {
 			try {
@@ -455,18 +521,20 @@ public class DkimSigner {
 
 		try {
 			Enumeration<Header> headerLines = message.getAllHeaders();
-			List<Header> reverseOrderHeaderLines = new LinkedList<Header>();
-			
+			List<Pair<String, String>> reverseOrderHeaderLines = new LinkedList<Pair<String, String>>();
+
 			while (headerLines.hasMoreElements()) {
 				Header header = (Header) headerLines.nextElement();
-				if (headersToSign.contains(header.getName())) {
-					reverseOrderHeaderLines.add(0, header);
+
+				String headerName = normalizeSigningHeaderName(header.getName());
+				if (headerName != null) {
+					reverseOrderHeaderLines.add(0, new Pair<String, String>(headerName, header.getValue()));
 				}
 			}
 
-			for(Header header : reverseOrderHeaderLines) {
-				String headerName = header.getName();
-				String headerValue = header.getValue();
+			for(Pair<String, String> header : reverseOrderHeaderLines) {
+				String headerName = header._1;
+				String headerValue = header._2;
 				headerList.append(headerName).append(":");
 				headerContent.append(headerCanonicalization.canonicalizeHeader(headerName, headerValue));
 				headerContent.append("\r\n");
@@ -476,7 +544,7 @@ public class DkimSigner {
 					zParamString.append(":");
 					zParamString.append(quotedPrintable(headerValue.trim()).replace("|", "=7C"));
 					zParamString.append("|");
-				}		
+				}
 			}
 
 			if (!assureHeaders.isEmpty()) {
@@ -495,24 +563,16 @@ public class DkimSigner {
 		}
 
 		// process body
-		String body = message.getEncodedBody();
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		CRLFOutputStream crlfos = new CRLFOutputStream(baos);
-		try {
-			crlfos.write(body.getBytes());
-			crlfos.close();
-		} catch (IOException e) {
-			throw new DkimSigningException("The body conversion to MIME canonical CRLF line terminator failed", e);
-		}
-		body = baos.toString();
-		body = bodyCanonicalization.canonicalizeBody(body);
+		// line feed canonicalization is done here.
+		ByteArray body = bodyCanonicalization.canonicalizeBody(encodedBody);
 
 		if (lengthParam) {
 			dkimSignature.put("l", Integer.toString(body.length()));
 		}
 
 		// calculate and encode body hash
-		dkimSignature.put("bh", base64Encode(messageDigest.digest(body.getBytes())));
+		messageDigest.update(body.toByteBuffer());
+		dkimSignature.put("bh", base64Encode(messageDigest.digest()));
 
 		// create signature
 		String serializedSignature = serializeDkimSignature(dkimSignature);
@@ -528,6 +588,17 @@ public class DkimSigner {
 
 		return DKIM_SIGNATUR_HEADER + ": " + serializedSignature
 				+ foldSignedSignature(base64Encode(signedSignature), 3);
+	}
+
+	/**
+	 * Sometime, header name of MimeMessage's is different from headersToSign's.
+	 * Use headersToSign's as a signed header name.
+	 */
+	private String normalizeSigningHeaderName(String name) {
+		for (String it : headersToSign) {
+			if (it.equalsIgnoreCase(name)) return it;
+		}
+		return null;
 	}
 
 	private String serializeDkimSignature(Map<String, String> dkimSignature) {

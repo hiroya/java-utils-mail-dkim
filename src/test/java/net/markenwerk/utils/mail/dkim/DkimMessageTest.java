@@ -5,6 +5,7 @@ import static org.junit.Assert.assertArrayEquals;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Date;
 import java.util.Properties;
 import java.util.Random;
@@ -54,7 +55,7 @@ public class DkimMessageTest {
 	private static void createSignedMessage(Canonicalization canonicalization, SigningAlgorithm algorithm, String body,
 			File file) throws Exception {
 		String folderName = getFolderName(canonicalization, algorithm);
-		byte[] bytes = writeMessage(Utils.getSigner(canonicalization, algorithm), body);
+		byte[] bytes = writeMessage(Utils.getSigner(canonicalization, algorithm), body, true);
 		Utils.write(new File("./src/test/resources/" + folderName, file.getName()), bytes);
 	}
 
@@ -64,24 +65,33 @@ public class DkimMessageTest {
 	}
 
 	@Test
-	public void checkCreatesSameMessageAsBefore() throws Exception {
+	public void checkCreatesSameMessageAsBefore_with_DkimMsg() throws Exception {
+		_checkCreatesSameMessageAsBefore(true);
+	}
+
+	@Test
+	public void checkCreatesSameMessageAsBefore_without_DkimMsg() throws Exception {
+		_checkCreatesSameMessageAsBefore(false);
+	}
+
+	private void _checkCreatesSameMessageAsBefore(boolean useDkimMsg) throws Exception {
 		File[] files = new File("./src/test/resources/body").listFiles();
 		for (File file : files) {
 			String body = new String(Utils.read(file));
 			for (Canonicalization canonicalization : Canonicalization.values()) {
 				for (SigningAlgorithm algorithm : SigningAlgorithm.values()) {
-					checkCreatesSameMessageAsBefore(canonicalization, algorithm, body, file);
+					checkCreatesSameMessageAsBefore(canonicalization, algorithm, body, file, useDkimMsg);
 				}
 			}
 		}
 	}
 
 	private void checkCreatesSameMessageAsBefore(Canonicalization canonicalization, SigningAlgorithm algorithm,
-			String body, File file) throws Exception {
+			String body, File file, boolean useDkimMsg) throws Exception {
 
 		String folderName = getFolderName(canonicalization, algorithm);
 		byte[] expected = Utils.read(new File("./src/test/resources/" + folderName, file.getName()));
-		byte[] actual = writeMessage(Utils.getSigner(canonicalization, algorithm), body);
+		byte[] actual = writeMessage(Utils.getSigner(canonicalization, algorithm), body, useDkimMsg);
 
 		String configuration = canonicalization.name() + " " + algorithm.getHashNotation().toUpperCase();
 		assertArrayEquals(configuration + " / " + file.getName(), expected, actual);
@@ -93,7 +103,13 @@ public class DkimMessageTest {
 		return algorithm.getRfc4871Notation().substring(index) + "_" + canonicalization.name().toLowerCase();
 	}
 
-	private static byte[] writeMessage(DkimSigner dkimSigner, String body) throws Exception {
+	private static byte[] writeMessage(DkimSigner dkimSigner, String body, boolean useDkimMsg) throws Exception {
+		ByteArrayOutputStream ba = new ByteArrayOutputStream();
+		writeMessageTo(dkimSigner, body, useDkimMsg, ba);
+		return ba.toByteArray();
+	}
+
+	static void writeMessageTo(DkimSigner dkimSigner, String body, boolean useDkimMsg, OutputStream out) throws Exception {
 
 		Properties properties = new Properties();
 		properties.setProperty("mail.smtp.host", "exapmle.com");
@@ -124,12 +140,12 @@ public class DkimMessageTest {
 		mimeMessage.setHeader("Content-Type", "text/plain; charset=\"US-ASCII\"");
 		mimeMessage.saveChanges();
 
-		DkimMessage dkimMessage = new DkimMessage(mimeMessage, dkimSigner);
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		dkimMessage.writeTo(out);
-
-		return out.toByteArray();
-
+		if (useDkimMsg) {
+			DkimMessage dkimMessage = new DkimMessage(mimeMessage, dkimSigner);
+			dkimMessage.writeTo(out);
+		} else {
+			dkimSigner.writeTo(mimeMessage, out);
+		}
 	}
 
 }
